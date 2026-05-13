@@ -113,7 +113,7 @@ function Loader() {
 
 // --- Edit Panel ---
 function Panel({ formData, onChange, pickMode, setPickMode, onSave, onClose, saving }) {
-  const field = (label, key, type = 'text') => (
+  const field = (label, key, type = 'text', disabled = false) => (
     <div style={{ marginBottom: 14 }}>
       <label style={{
         display: 'block', fontSize: 11, fontWeight: 600,
@@ -123,15 +123,19 @@ function Panel({ formData, onChange, pickMode, setPickMode, onSave, onClose, sav
       <input
         type={type} step={type === 'number' ? 'any' : undefined}
         value={formData[key] ?? ''}
-        onChange={e => onChange(key, type === 'number' ? parseFloat(e.target.value) : e.target.value)}
+        onChange={e => !disabled && onChange(key, type === 'number' ? parseFloat(e.target.value) : e.target.value)}
+        disabled={disabled}
         style={{
           width: '100%', boxSizing: 'border-box',
           border: '1px solid #d1d5db', borderRadius: 8,
           padding: '9px 12px', fontSize: 14, outline: 'none',
           fontFamily: 'inherit',
+          background: disabled ? '#f3f4f6' : 'white',
+          color: disabled ? '#6b7280' : '#111827',
+          cursor: disabled ? 'not-allowed' : 'text',
         }}
-        onFocus={e => e.target.style.borderColor = '#3b82f6'}
-        onBlur={e  => e.target.style.borderColor = '#d1d5db'}
+        onFocus={disabled ? undefined : e => e.target.style.borderColor = '#3b82f6'}
+        onBlur={disabled ? undefined : e  => e.target.style.borderColor = '#d1d5db'}
       />
     </div>
   );
@@ -160,9 +164,9 @@ function Panel({ formData, onChange, pickMode, setPickMode, onSave, onClose, sav
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '18px 18px 8px' }}>
-        {field('Viloyat',  'viloyat')}
-        {field('District', 'district')}
-        {field('MFY',      'mfy')}
+        {field('Viloyat',  'viloyat',  'text', true)}
+        {field('Tuman',    'district', 'text', true)}
+        {field('MFY',      'mfy',      'text', true)}
         {field('Nomi',     'name')}
 
         <div style={{ marginBottom: 14 }}>
