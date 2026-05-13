@@ -142,7 +142,7 @@ function Panel({ formData, onChange, pickMode, setPickMode, onSave, onClose, sav
 
   return (
     <div style={{
-      position: 'absolute', top: 0, right: 0, bottom: 0, width: 360,
+      position: 'absolute', top: 0, right: 0, bottom: 0, width: 380,
       zIndex: 1500, background: '#fff',
       boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
       display: 'flex', flexDirection: 'column',
@@ -234,11 +234,31 @@ function Panel({ formData, onChange, pickMode, setPickMode, onSave, onClose, sav
   );
 }
 
+// --- Toast notification ---
+function Toast({ message }) {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 9999, background: '#22c55e', color: 'white',
+      padding: '12px 28px', borderRadius: 10,
+      fontSize: 15, fontWeight: 600,
+      boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+      pointerEvents: 'none',
+      animation: 'fadeInUp 0.25s ease',
+    }}>
+      {message}
+      <style>{`@keyframes fadeInUp { from { opacity:0; transform:translateX(-50%) translateY(12px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
+    </div>
+  );
+}
+
 // --- Main ---
 export default function Map() {
+  const savedViloyat = localStorage.getItem('selectedViloyat');
+
   // UI state
-  const [viloyat,          setViloyat]         = useState(null);
-  const [showViloyatModal, setShowViloyatModal] = useState(true);
+  const [viloyat,          setViloyat]         = useState(savedViloyat || null);
+  const [showViloyatModal, setShowViloyatModal] = useState(!savedViloyat);
   const [tumanlar,         setTumanlar]         = useState([]);
   const [mfylar,           setMfylar]           = useState([]);
   const [selectedDistrict, setSelectedDistrict] = useState('');
@@ -249,12 +269,13 @@ export default function Map() {
   const [formData,         setFormData]         = useState(null);
   const [pickMode,         setPickMode]         = useState(false);
   const [saving,           setSaving]           = useState(false);
+  const [toast,            setToast]            = useState(null);
 
   // Ref lar — closure muammosini oldini oladi
   const boundsRef   = useRef(null);
   const debounceRef = useRef(null);
   const abortRef    = useRef(null);
-  const filtersRef  = useRef({ viloyat: null, district: '', mfy: '' });
+  const filtersRef  = useRef({ viloyat: savedViloyat || null, district: '', mfy: '' });
 
   // fetchLocations faqat ref lardan o'qiydi — hech qachon qayta yaratilmaydi
   const fetchLocations = useCallback(async () => {
@@ -320,6 +341,7 @@ export default function Map() {
 
   // Viloyat modal
   const handleViloyatSelect = useCallback((v) => {
+    localStorage.setItem('selectedViloyat', v);
     filtersRef.current = { viloyat: v, district: '', mfy: '' };
     setViloyat(v);
     setSelectedDistrict('');
@@ -373,6 +395,8 @@ export default function Map() {
       setLocations(prev => prev.map(l => l.id === updated.id ? updated : l));
       setSelected(updated);
       setFormData({ ...updated });
+      setToast('Muvaffaqiyatli saqlandi');
+      setTimeout(() => setToast(null), 2500);
     } catch (err) {
       alert('Saqlashda xatolik: ' + err.message);
     } finally {
@@ -382,6 +406,8 @@ export default function Map() {
 
   return (
     <div style={{ position: 'relative', height: '100vh', width: '100%' }}>
+      {toast && <Toast message={toast} />}
+
       {/* Viloyat tanlash modali */}
       {showViloyatModal && <ViloyatModal onSelect={handleViloyatSelect} />}
 
