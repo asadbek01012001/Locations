@@ -3,8 +3,8 @@ import { MapContainer, TileLayer, Marker, Polygon, useMap, useMapEvents } from '
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import 'react-leaflet-cluster/dist/assets/MarkerCluster.css';
-import 'react-leaflet-cluster/dist/assets/MarkerCluster.Default.css';
+import 'react-leaflet-cluster/lib/assets/MarkerCluster.css';
+import 'react-leaflet-cluster/lib/assets/MarkerCluster.Default.css';
 
 import ViloyatModal        from './ViloyatModal';
 import FilterBar           from './FilterBar';
