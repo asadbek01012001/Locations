@@ -8,6 +8,7 @@ import 'react-leaflet-cluster/lib/assets/MarkerCluster.Default.css';
 
 import ViloyatModal        from './ViloyatModal';
 import FilterBar           from './FilterBar';
+import NullGeoModal        from './NullGeoModal';
 import { regionPolygons }  from './data.ts';
 
 // Kirill DB nomi → data.ts dagi inglizcha nom
@@ -140,9 +141,35 @@ function Panel({ formData, onChange, pickMode, setPickMode, onSave, onClose, sav
     </div>
   );
 
+  const numRow = (pairs) => (
+    <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+      {pairs.map(([label, key]) => (
+        <div key={key} style={{ flex: 1 }}>
+          <label style={{
+            display: 'block', fontSize: 10, fontWeight: 600,
+            color: '#6b7280', marginBottom: 4,
+            textTransform: 'uppercase', letterSpacing: '0.04em',
+          }}>{label}</label>
+          <input
+            type="number" value={formData[key] ?? ''}
+            disabled
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              border: '1px solid #d1d5db', borderRadius: 8,
+              padding: '7px 10px', fontSize: 13, outline: 'none',
+              fontFamily: 'inherit',
+              background: '#f3f4f6', color: '#6b7280',
+              cursor: 'not-allowed', textAlign: 'center',
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div style={{
-      position: 'absolute', top: 0, right: 0, bottom: 0, width: 380,
+      position: 'absolute', top: 0, right: 0, bottom: 0, width: 400,
       zIndex: 1500, background: '#fff',
       boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
       display: 'flex', flexDirection: 'column',
@@ -154,7 +181,9 @@ function Panel({ formData, onChange, pickMode, setPickMode, onSave, onClose, sav
       }}>
         <span style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>
           Tahrirlash{' '}
-          <span style={{ fontWeight: 400, fontSize: 12, color: '#9ca3af' }}>#{formData.id}</span>
+          <span style={{ fontWeight: 400, fontSize: 12, color: '#9ca3af' }}>
+            #{formData.id}{formData.tr != null ? ` · T/r ${formData.tr}` : ''}
+          </span>
         </span>
         <button onClick={onClose} style={{
           background: 'none', border: 'none', cursor: 'pointer',
@@ -210,6 +239,41 @@ function Panel({ formData, onChange, pickMode, setPickMode, onSave, onClose, sav
             </div>
           )}
         </div>
+
+        {/* Kameralar */}
+        <div style={{
+          marginBottom: 6, fontSize: 11, fontWeight: 700,
+          color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em',
+          borderTop: '1px solid #f3f4f6', paddingTop: 14,
+        }}>
+          Kameralar
+        </div>
+        {numRow([
+          ['Yo\'naltirilgan', 'camera_directed'],
+          ['Yuz tanish',      'camera_face'],
+        ])}
+        {numRow([
+          ['Transport',  'camera_vehicle'],
+          ['PTZ',        'camera_ptz'],
+        ])}
+
+        {/* Uskunalar */}
+        <div style={{
+          marginBottom: 6, fontSize: 11, fontWeight: 700,
+          color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em',
+          borderTop: '1px solid #f3f4f6', paddingTop: 14,
+        }}>
+          Uskunalar
+        </div>
+        {numRow([
+          ['Shkaf',        'shkaf'],
+          ['PoE 4-port',   'poe_4port'],
+          ['PoE 8-port',   'poe_8port'],
+        ])}
+        {numRow([
+          ['Kronshtein',     'kronshtein'],
+          ['El. hisoblagich','electric_meter'],
+        ])}
       </div>
 
       <div style={{ padding: '14px 18px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: 8 }}>
@@ -270,6 +334,8 @@ export default function Map() {
   const [pickMode,         setPickMode]         = useState(false);
   const [saving,           setSaving]           = useState(false);
   const [toast,            setToast]            = useState(null);
+  const [showNullGeo,      setShowNullGeo]      = useState(false);
+  const [trNotFound,       setTrNotFound]       = useState(false);
 
   // Ref lar — closure muammosini oldini oladi
   const boundsRef   = useRef(null);
@@ -381,6 +447,27 @@ export default function Map() {
   const handleSelectedDragEnd = useCallback((e) => { const { lat, lng } = e.target.getLatLng(); setFormData(p => ({ ...p, lat, lng })); }, []);
   const handleClose           = useCallback(() => { setSelected(null); setFormData(null); setPickMode(false); }, []);
 
+  // TR qidiruv
+  const handleTrSearch = useCallback(async (trNum) => {
+    const v = filtersRef.current.viloyat;
+    if (!v) return;
+    try {
+      const res = await fetch(`/api/locations?viloyat=${encodeURIComponent(v)}&tr=${trNum}&limit=1`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (data.length === 0) {
+        setTrNotFound(true);
+        setTimeout(() => setTrNotFound(false), 2000);
+      } else {
+        setSelected(data[0]);
+        setFormData({ ...data[0] });
+        setPickMode(false);
+      }
+    } catch (err) {
+      console.error('TR qidiruv xatosi:', err);
+    }
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (!selected || !formData) return;
     setSaving(true);
@@ -407,9 +494,19 @@ export default function Map() {
   return (
     <div style={{ position: 'relative', height: '100vh', width: '100%' }}>
       {toast && <Toast message={toast} />}
+      {trNotFound && <Toast message="Bu T/r raqam topilmadi" />}
 
       {/* Viloyat tanlash modali */}
       {showViloyatModal && <ViloyatModal onSelect={handleViloyatSelect} />}
+
+      {/* Geo yo'q modali */}
+      {showNullGeo && viloyat && (
+        <NullGeoModal
+          viloyat={viloyat}
+          onClose={() => setShowNullGeo(false)}
+          onSelectRow={handleMarkerClick}
+        />
+      )}
 
       {loading && <Loader />}
 
@@ -442,7 +539,7 @@ export default function Map() {
           </>
         )}
 
-        {selected && formData && (
+        {selected && formData && formData.lat != null && formData.lng != null && (
           <Marker
             position={[formData.lat, formData.lng]}
             icon={selectedIcon}
@@ -453,7 +550,7 @@ export default function Map() {
         )}
 
         <MarkerClusterGroup chunkedLoading maxClusterRadius={60} showCoverageOnHover={false}>
-          {locations.filter(loc => loc.id !== selected?.id).map(loc => (
+          {locations.filter(loc => loc.id !== selected?.id && loc.lat != null && loc.lng != null).map(loc => (
             <Marker
               key={loc.id}
               position={[loc.lat, loc.lng]}
@@ -474,6 +571,8 @@ export default function Map() {
           selectedMfy={selectedMfy}
           onMfyChange={handleMfyChange}
           onViloyatChange={() => setShowViloyatModal(true)}
+          onShowNullGeo={() => setShowNullGeo(true)}
+          onTrSearch={handleTrSearch}
         />
       )}
 
